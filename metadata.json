@@ -1,0 +1,7 @@
+{
+  "name": "RebelCraves",
+  "description": "Hyperlocal fast food delivery app for small cities with live tracking.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

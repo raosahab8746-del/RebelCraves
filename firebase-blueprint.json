@@ -1,0 +1,102 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "mobileNumber": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer", "delivery", "admin", "vendor"] },
+        "city": { "type": "string" },
+        "isBlocked": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "email", "role"]
+    },
+    "shop": {
+      "title": "Shop",
+      "description": "Local city vendor information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "image": { "type": "string", "format": "uri" },
+        "description": { "type": "string" },
+        "deliveryTime": { "type": "string" }
+      },
+      "required": ["name", "image", "deliveryTime"]
+    },
+    "menuItem": {
+      "title": "Menu Item",
+      "description": "Food item in a shop",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "shopId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string", "format": "uri" },
+        "category": { "type": "string" }
+      },
+      "required": ["shopId", "name", "price", "image"]
+    },
+    "order": {
+      "title": "Order",
+      "description": "Customer order information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "deliveryPartnerId": { "type": "string" },
+        "items": { "type": "array" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "assigned", "out_for_delivery", "delivered", "cancelled"] },
+        "address": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["cod", "upi", "online"] },
+        "paymentStatus": { "type": "string", "enum": ["pending", "paid"] },
+        "paymentCollectedBy": { "type": "string", "enum": ["delivery", "admin"] },
+        "paymentProof": { "type": "string" },
+        "razorpayOrderId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "items", "totalPrice", "status", "address", "paymentMethod", "paymentStatus"]
+    },
+    "deliveryLocation": {
+      "title": "Delivery Location",
+      "description": "Live GPS location of a delivery partner",
+      "type": "object",
+      "properties": {
+        "deliveryPartnerId": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["deliveryPartnerId", "lat", "lng", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "User profile"
+    },
+    "/shops/{shopId}": {
+      "schema": "shop",
+      "description": "City vendors"
+    },
+    "/shops/{shopId}/menu/{itemId}": {
+      "schema": "menuItem",
+      "description": "Menu items for a shop"
+    },
+    "/orders/{orderId}": {
+      "schema": "order",
+      "description": "Customer orders"
+    },
+    "/locations/{deliveryPartnerId}": {
+      "schema": "deliveryLocation",
+      "description": "Live GPS locations"
+    }
+  }
+}
