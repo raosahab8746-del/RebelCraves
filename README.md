@@ -197,9 +197,6 @@ npm run build && npm run deploy
 | **2** | 🔄 Q2 | ML demand forecasting, loyalty program, i18n |
 | **3** | 📅 Q3-Q4 | Dynamic pricing, inventory prediction, API for partners |
 
----
-
-## ✨ Impressive Bits for Interviewers
 
 → **Ask me about:**
 - How we handle real-time order updates across 4 different dashboards simultaneously
