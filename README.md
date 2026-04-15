@@ -223,4 +223,15 @@ npm run build && npm run deploy
 
 **Built by Hemant Yadav | Full-Stack Engineer**
 
-*This project demonstrates production-grade full-stack architecture, real-time system design, and delivering complex features at scale.*
+
+
+
+I'm available for:
+- **Freelance projects** (web development, UI/UX)
+- **Full-time roles** (Frontend/Full-Stack)
+- **AI/Data projects** (Python, ML, analytics)
+- **Consulting** (architecture, performance optimization)
+
+---
+
+**This project demonstrates full-stack capability: user experience design, real-time data architecture, and production deployment.**
