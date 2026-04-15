@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, User } from 'firebase/auth';
-import { getFirestore, getDocFromServer, doc } from 'firebase/firestore';
+import { getFirestore, getDocFromServer, doc, setDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getMessaging, onMessage } from 'firebase/messaging';
 // @ts-ignore
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -12,6 +13,23 @@ console.log("Initializing Firebase with config:", {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
+
+// Initialize Firebase Cloud Messaging
+let messaging: any = null;
+try {
+  messaging = getMessaging(app);
+  console.log("Firebase Cloud Messaging initialized");
+} catch (error) {
+  console.log("Firebase Cloud Messaging not available (may be expected in some environments):", error);
+}
+
+// Setup foreground message handler
+if (messaging) {
+  onMessage(messaging, (payload) => {
+    console.log("Foreground message received:", payload);
+    // This will be handled by the app's notification system
+  });
+}
 
 export enum OperationType {
   CREATE = 'create',

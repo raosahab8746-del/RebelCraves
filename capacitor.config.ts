@@ -12,7 +12,12 @@ const config: CapacitorConfig = {
       'rebelcraves.in',
       '*.rebelcraves.in'
     ]
-  }
+  },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"],
+    },
+  },
 };
 
 export default config;

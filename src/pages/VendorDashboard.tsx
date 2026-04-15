@@ -26,7 +26,7 @@ const VendorDashboard = () => {
     image: ''
   });
   const [orderFilter, setOrderFilter] = useState<'all' | 'active' | 'past'>('active');
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('oldest'); // Default to oldest first for priority
   const [isOnline, setIsOnline] = useState(profile?.isActive || false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -706,8 +706,8 @@ const VendorDashboard = () => {
                 onChange={(e) => setSortOrder(e.target.value as any)}
                 className="bg-navy-50 border-none rounded-xl text-[10px] font-black uppercase tracking-widest text-navy-900 px-4 py-2 focus:ring-2 focus:ring-navy-500"
               >
+                <option value="oldest">Oldest First (Priority)</option>
                 <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
               </select>
             </div>
           </div>
@@ -722,6 +722,7 @@ const VendorDashboard = () => {
                     <th className="px-8 py-6 text-[10px] font-black text-navy-400 uppercase tracking-widest">Delivery Partner</th>
                     <th className="px-8 py-6 text-[10px] font-black text-navy-400 uppercase tracking-widest">Status</th>
                     <th className="px-8 py-6 text-[10px] font-black text-navy-400 uppercase tracking-widest">Payment</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-navy-400 uppercase tracking-widest">Time in Queue</th>
                     <th className="px-8 py-6 text-[10px] font-black text-navy-400 uppercase tracking-widest">ETA (Mins)</th>
                     <th className="px-8 py-6 text-[10px] font-black text-navy-400 uppercase tracking-widest">Actions</th>
                   </tr>
@@ -739,9 +740,16 @@ const VendorDashboard = () => {
                       return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
                     })
                     .map(order => (
-                    <tr key={order.id} className="hover:bg-navy-50/30 transition-colors group">
+                    <tr key={order.id} className={`hover:bg-navy-50/30 transition-colors group ${
+                      order.status === 'pending' || order.status === 'confirmed' ? 'bg-accent-50/30' : ''
+                    }`}>
                       <td className="px-8 py-6">
-                        <span className="text-sm font-black text-navy-900 tracking-tighter">#{order.id.slice(0, 8)}</span>
+                        <div className="flex items-center space-x-2">
+                          {order.status === 'pending' && (
+                            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" title="Urgent - Just placed"></div>
+                          )}
+                          <span className="text-sm font-black text-navy-900 tracking-tighter">#{order.id.slice(0, 8)}</span>
+                        </div>
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex items-center space-x-4">
@@ -805,6 +813,25 @@ const VendorDashboard = () => {
                             </span>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        {(() => {
+                          const createdTime = order.createdAt?.toDate?.()?.getTime?.() || Date.now();
+                          const currentTime = Date.now();
+                          const minutesInQueue = Math.floor((currentTime - createdTime) / 60000);
+                          
+                          let label = '';
+                          let color = 'text-gray-600';
+                          if (minutesInQueue < 2) { label = 'Just now'; color = 'text-red-600 font-black'; }
+                          else if (minutesInQueue < 10) { label = `${minutesInQueue}m ago`; color = 'text-orange-600 font-black'; }
+                          else { label = `${minutesInQueue}m ago`; color = 'text-yellow-600'; }
+                          
+                          return (
+                            <span className={`text-xs font-bold ${color} uppercase tracking-widest`}>
+                              {label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-8 py-6">
                         {order.status !== 'delivered' && order.status !== 'cancelled' ? (

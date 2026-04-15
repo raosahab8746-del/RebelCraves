@@ -93,16 +93,30 @@ const Checkout = () => {
 
   const [hasSetInitialAddress, setHasSetInitialAddress] = useState(false);
 
+  // Set initial address from saved addresses
   React.useEffect(() => {
     if (profile?.addresses && profile.addresses.length > 0 && !hasSetInitialAddress) {
-      setSelectedAddressId(profile.addresses[0].id);
-      setAddress(profile.addresses[0].fullAddress);
-      if (profile.addresses[0].lat && profile.addresses[0].lng) {
-        setCustomerCoords({ lat: profile.addresses[0].lat, lng: profile.addresses[0].lng });
+      const firstAddress = profile.addresses[0];
+      setSelectedAddressId(firstAddress.id);
+      setAddress(firstAddress.fullAddress);
+      if (firstAddress.lat && firstAddress.lng) {
+        setCustomerCoords({ lat: firstAddress.lat, lng: firstAddress.lng });
       }
       setHasSetInitialAddress(true);
     }
-  }, [profile, hasSetInitialAddress]);
+  }, [profile?.addresses, hasSetInitialAddress]);
+
+  // Handle address selection from saved addresses
+  const handleSelectSavedAddress = (addressId: string) => {
+    const savedAddress = profile?.addresses?.find(a => a.id === addressId);
+    if (savedAddress) {
+      setSelectedAddressId(addressId);
+      setAddress(savedAddress.fullAddress);
+      if (savedAddress.lat && savedAddress.lng) {
+        setCustomerCoords({ lat: savedAddress.lat, lng: savedAddress.lng });
+      }
+    }
+  };
 
   React.useEffect(() => {
     const fetchShopCoords = async () => {

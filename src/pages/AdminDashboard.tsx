@@ -37,7 +37,9 @@ const AdminDashboard = () => {
   const [vendors, setVendors] = useState<UserProfile[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [userSearch, setUserSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'shops' | 'orders' | 'partners' | 'users' | 'groceries' | 'settings' | 'analytics' | 'coupons' | 'banners' | 'tracking'>('orders');
+  const [cityAdmins, setCityAdmins] = useState<UserProfile[]>([]);
+  const [activeTab, setActiveTab] = useState<'shops' | 'orders' | 'partners' | 'users' | 'groceries' | 'settings' | 'analytics' | 'coupons' | 'banners' | 'tracking' | 'city-admins'>('orders');
+  const [newCityAdmin, setNewCityAdmin] = useState({ userId: '', city: '' });
   const [locations, setLocations] = useState<Record<string, { lat: number, lng: number, updatedAt: any }>>({});
   const [orderFilter, setOrderFilter] = useState<'all' | 'active' | 'cancelled'>('all');
   const [coupons, setCoupons] = useState<Coupon[]>([]);

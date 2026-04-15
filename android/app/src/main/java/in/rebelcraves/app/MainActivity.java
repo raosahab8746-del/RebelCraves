@@ -8,18 +8,20 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeWebViewClient;
 
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        ImageView logoImage = findViewById(getResources().getIdentifier("logoImage", "id", getPackageName()));
-        ImageView ringLoader = findViewById(getResources().getIdentifier("ringLoader", "id", getPackageName()));
+        // Custom Loading Screen Logic
+        ImageView logoImage = findViewById(R.id.logoImage);
+        ImageView ringLoader = findViewById(R.id.ringLoader);
 
         if (logoImage != null) {
             Animation pulseAnim = AnimationUtils.loadAnimation(this, R.anim.logo_pulse);
@@ -30,9 +32,10 @@ public class MainActivity extends BridgeActivity {
             Animation rotateAnim = AnimationUtils.loadAnimation(this, R.anim.ring_rotate);
             ringLoader.startAnimation(rotateAnim);
         }
-
+        
+        // Ensure the bridge uses a client that handles tel: and whatsapp: without breaking Capacitor
         if (getBridge() != null && getBridge().getWebView() != null) {
-            getBridge().getWebView().setWebViewClient(new WebViewClient() {
+            getBridge().getWebView().setWebViewClient(new BridgeWebViewClient(getBridge()) {
                 @Override
                 public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                     Uri uri = request.getUrl();
@@ -40,15 +43,17 @@ public class MainActivity extends BridgeActivity {
 
                     if (url.startsWith("tel:") || url.startsWith("whatsapp:")) {
                         Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                        startActivity(intent);
+                        view.getContext().startActivity(intent);
                         return true;
                     }
-                    return false;
+                    
+                    return super.shouldOverrideUrlLoading(view, request);
                 }
 
                 @Override
                 public void onPageFinished(WebView view, String url) {
-                    View loadingLayout = findViewById(getResources().getIdentifier("loadingLayout", "id", getPackageName()));
+                    super.onPageFinished(view, url);
+                    LinearLayout loadingLayout = findViewById(R.id.loadingLayout);
                     if (loadingLayout != null) {
                         loadingLayout.setVisibility(View.GONE);
                     }

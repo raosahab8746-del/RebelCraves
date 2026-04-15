@@ -110,12 +110,46 @@ const PushNotificationInitializer = () => {
           console.error('Push registration error:', error);
         });
 
-        PushNotifications.addListener('pushNotificationReceived', (notification) => {
-          console.log('Push notification received:', notification);
+        // Handle notifications received while app is in foreground
+        PushNotifications.addListener('pushNotificationReceived', async (notification) => {
+          console.log('Push notification received (foreground):', notification);
+          
+          // Store notification in Firestore so it appears in the app
+          if (user?.uid && notification.data) {
+            try {
+              const { addDoc, collection, serverTimestamp } = await import('firebase/firestore');
+              await addDoc(collection(db, 'notifications'), {
+                userId: user.uid,
+                title: notification.title || 'New Notification',
+                message: notification.body || '',
+                type: notification.data.type || 'notification',
+                data: notification.data,
+                read: false,
+                createdAt: serverTimestamp()
+              });
+              console.log('Notification saved to Firestore');
+            } catch (error) {
+              console.error('Error saving notification to Firestore:', error);
+            }
+          }
         });
 
-        PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+        // Handle notification clicks
+        PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
           console.log('Push notification action performed:', action);
+          
+          // Handle navigation based on notification data
+          if (action.notification.data) {
+            const { type, orderId } = action.notification.data;
+            if (type === 'order' && orderId) {
+              window.location.hash = `/order-tracking/${orderId}`;
+            }
+          }
+        });
+
+        // Handle background notifications by checking notifications on app resume
+        PushNotifications.addListener('pushNotificationsStartup', async (notification) => {
+          console.log('App resumed with notification:', notification);
         });
       } catch (error) {
         console.error('Push init error:', error);

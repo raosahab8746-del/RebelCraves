@@ -30,8 +30,8 @@ const NotificationCenter: React.FC = () => {
   const sessionStartTime = useRef(Date.now());
 
   useEffect(() => {
-    // Initialize audio with a more intense "crazy" sound
-    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3');
+    // Initialize audio with waterfall/heavy water sound
+    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2762/2762-preview.mp3');
     
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();

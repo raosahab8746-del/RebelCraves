@@ -1,4 +1,4 @@
-export type UserRole = 'customer' | 'delivery' | 'admin' | 'vendor';
+export type UserRole = 'customer' | 'delivery' | 'admin' | 'super-admin' | 'city-admin' | 'vendor';
 
 export interface SavedAddress {
   id: string;
