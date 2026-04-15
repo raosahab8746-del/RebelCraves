@@ -79,18 +79,42 @@ const NotificationCenter: React.FC = () => {
 
         // Trigger native browser push notification
         if ('Notification' in window && Notification.permission === 'granted') {
-          const n = new Notification(latest.title, {
-            body: latest.message,
-            icon: '/favicon.ico',
-            tag: latest.id, // Ensure unique ID for background notifications
-            requireInteraction: true
-          });
+          if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
+            navigator.serviceWorker.ready.then(registration => {
+              registration.showNotification(latest.title, {
+                body: latest.message,
+                icon: '/favicon.ico',
+                tag: latest.id,
+                requireInteraction: true
+              } as any);
+            }).catch(err => {
+              console.error('Service Worker notification failed, falling back to standard Notification:', err);
+              const n = new Notification(latest.title, {
+                body: latest.message,
+                icon: '/favicon.ico',
+                tag: latest.id,
+                requireInteraction: true
+              });
+              n.onclick = () => {
+                window.focus();
+                handleNotificationClick(latest);
+                n.close();
+              };
+            });
+          } else {
+            const n = new Notification(latest.title, {
+              body: latest.message,
+              icon: '/favicon.ico',
+              tag: latest.id,
+              requireInteraction: true
+            });
 
-          n.onclick = () => {
-            window.focus();
-            handleNotificationClick(latest);
-            n.close();
-          };
+            n.onclick = () => {
+              window.focus();
+              handleNotificationClick(latest);
+              n.close();
+            };
+          }
         }
       }
       

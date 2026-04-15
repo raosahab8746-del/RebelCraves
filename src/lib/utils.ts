@@ -59,3 +59,14 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
 function deg2rad(deg: number): number {
   return deg * (Math.PI / 180);
 }
+
+export async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+    const data = await response.json();
+    return data.display_name || "Unknown Location";
+  } catch (error) {
+    console.error("Reverse geocoding failed:", error);
+    return "Location detected (Address unavailable)";
+  }
+}

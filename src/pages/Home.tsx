@@ -118,8 +118,7 @@ const Home = () => {
                            shop.description.toLowerCase().includes(searchTerm.toLowerCase());
       const userCity = profile?.city?.toLowerCase();
       const shopCity = shop.city?.toLowerCase();
-      const hasShopsInCity = shops.some(s => s.city?.toLowerCase() === userCity);
-      const matchesCity = !userCity || !hasShopsInCity || shopCity === userCity;
+      const matchesCity = !userCity || shopCity === userCity;
       return matchesSearch && matchesCity;
     })
     .sort((a, b) => {

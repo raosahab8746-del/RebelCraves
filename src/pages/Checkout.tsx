@@ -4,7 +4,7 @@ import { collection, addDoc, serverTimestamp, doc, onSnapshot, query, where, get
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { formatPrice, resizeImage, calculateDistance } from '../lib/utils';
+import { formatPrice, resizeImage, calculateDistance, reverseGeocode } from '../lib/utils';
 import { Truck, MapPin, Smartphone, ShoppingBag, QrCode, CreditCard, Tag, X, Upload, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SUPER_ADMIN_CONFIG } from '../constants';
@@ -19,6 +19,41 @@ const Checkout = () => {
   const [shopCoords, setShopCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [distanceKm, setDistanceKm] = useState<number>(0);
   const [selectedAddressId, setSelectedAddressId] = useState<string | 'new'>('new');
+  const [isDetecting, setIsDetecting] = useState(false);
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setIsDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const addressString = await reverseGeocode(latitude, longitude);
+          setCustomerCoords({ lat: latitude, lng: longitude });
+          setAddress(addressString);
+          setSelectedAddressId('new');
+        } catch (error) {
+          setCustomerCoords({ lat: latitude, lng: longitude });
+        } finally {
+          setIsDetecting(false);
+        }
+      },
+      (err) => {
+        setIsDetecting(false);
+        let message = 'Failed to detect location.';
+        if (err.code === err.PERMISSION_DENIED) {
+          message = 'Location permission denied. Please enable it in your browser settings.';
+        }
+        alert(message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'upi'>('cod');
   const [paymentProof, setPaymentProof] = useState<string | null>(null);
@@ -51,15 +86,18 @@ const Checkout = () => {
   });
   const navigate = useNavigate();
 
+  const [hasSetInitialAddress, setHasSetInitialAddress] = useState(false);
+
   React.useEffect(() => {
-    if (profile?.addresses && profile.addresses.length > 0) {
+    if (profile?.addresses && profile.addresses.length > 0 && !hasSetInitialAddress) {
       setSelectedAddressId(profile.addresses[0].id);
       setAddress(profile.addresses[0].fullAddress);
       if (profile.addresses[0].lat && profile.addresses[0].lng) {
         setCustomerCoords({ lat: profile.addresses[0].lat, lng: profile.addresses[0].lng });
       }
+      setHasSetInitialAddress(true);
     }
-  }, [profile]);
+  }, [profile, hasSetInitialAddress]);
 
   React.useEffect(() => {
     const fetchShopCoords = async () => {
@@ -394,22 +432,14 @@ const Checkout = () => {
             
             <button
               type="button"
-              onClick={() => {
-                if (navigator.geolocation) {
-                  navigator.geolocation.getCurrentPosition((pos) => {
-                    setCustomerCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-                    alert('Location detected successfully!');
-                  }, (err) => {
-                    alert('Failed to detect location. Please enter address manually.');
-                  });
-                }
-              }}
-              className={`w-full py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center space-x-2 ${
+              disabled={isDetecting}
+              onClick={handleDetectLocation}
+              className={`w-full py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center space-x-2 disabled:opacity-50 ${
                 customerCoords ? 'bg-green-100 text-green-600 border border-green-200' : 'bg-navy-900 text-white shadow-lg shadow-navy-100'
               }`}
             >
               <MapPin size={16} />
-              <span>{customerCoords ? 'Location Pinned' : 'Pin My Current Location'}</span>
+              <span>{isDetecting ? 'Detecting...' : (customerCoords ? 'Location Pinned ✓' : 'Pin My Current Location')}</span>
             </button>
           </section>
 

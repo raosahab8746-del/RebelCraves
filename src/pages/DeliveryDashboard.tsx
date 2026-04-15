@@ -169,19 +169,29 @@ const DeliveryDashboard = () => {
     if (isSharingLocation && profile) {
       interval = setInterval(() => {
         if ("geolocation" in navigator) {
-          navigator.geolocation.getCurrentPosition((position) => {
-            const { latitude, longitude } = position.coords;
-            setCurrentPartnerLoc({ lat: latitude, lng: longitude });
-            const path = `locations/${profile.uid}`;
-            setDoc(doc(db, 'locations', profile.uid), {
-              deliveryPartnerId: profile.uid,
-              lat: latitude,
-              lng: longitude,
-              updatedAt: serverTimestamp(),
-            }).catch(error => {
-              handleFirestoreError(error, OperationType.WRITE, path);
-            });
-          });
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const { latitude, longitude } = position.coords;
+              setCurrentPartnerLoc({ lat: latitude, lng: longitude });
+              const path = `locations/${profile.uid}`;
+              setDoc(doc(db, 'locations', profile.uid), {
+                deliveryPartnerId: profile.uid,
+                lat: latitude,
+                lng: longitude,
+                updatedAt: serverTimestamp(),
+              }).catch(error => {
+                handleFirestoreError(error, OperationType.WRITE, path);
+              });
+            },
+            (err) => {
+              console.error("Geolocation error:", err);
+              if (err.code === err.PERMISSION_DENIED) {
+                setIsSharingLocation(false);
+                alert("Location permission denied. Please enable it to share your live location with customers.");
+              }
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+          );
         }
       }, 5000);
     }

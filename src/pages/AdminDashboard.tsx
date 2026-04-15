@@ -4,7 +4,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Shop, MenuItem, Order, UserProfile, GroceryItem, GroceryCategory, MenuCategory, Coupon, AppBanner, SystemSettings } from '../types';
 import { motion } from 'motion/react';
 import { Plus, Trash2, Edit, Store, Package, Users, Settings, CheckCircle2, Search, ShoppingBasket, Tag, Upload, X, Clock, CloudRain, Truck, MapPin } from 'lucide-react';
-import { formatPrice, resizeImage } from '../lib/utils';
+import { formatPrice, resizeImage, reverseGeocode } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { sendNotification } from '../components/NotificationCenter';
 import { updateOrderStatus, verifyPayment } from '../services/orderService';
@@ -225,6 +225,57 @@ const AdminDashboard = () => {
     city: '',
     minOrderAmount: ''
   });
+
+  const [isDetecting, setIsDetecting] = useState(false);
+
+  const handleDetectLocation = (isEditing = false) => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setIsDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const addressString = await reverseGeocode(latitude, longitude);
+          if (isEditing && editingShop) {
+            setEditingShop({ 
+              ...editingShop, 
+              lat: latitude, 
+              lng: longitude,
+              address: addressString 
+            });
+          } else {
+            setNewShop(prev => ({ 
+              ...prev, 
+              lat: latitude, 
+              lng: longitude,
+              address: addressString 
+            }));
+          }
+        } catch (error) {
+          if (isEditing && editingShop) {
+            setEditingShop({ ...editingShop, lat: latitude, lng: longitude });
+          } else {
+            setNewShop(prev => ({ ...prev, lat: latitude, lng: longitude }));
+          }
+        } finally {
+          setIsDetecting(false);
+        }
+      },
+      (err) => {
+        setIsDetecting(false);
+        let message = 'Failed to detect location.';
+        if (err.code === err.PERMISSION_DENIED) {
+          message = 'Location permission denied. Please enable it in your browser settings.';
+        }
+        alert(message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   useEffect(() => {
     if (profile?.city && !newShop.city) {
@@ -1256,20 +1307,12 @@ const AdminDashboard = () => {
                   />
                   <button
                     type="button"
-                    onClick={() => {
-                      if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition((pos) => {
-                          setNewShop(prev => ({ ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude }));
-                          alert('Location detected successfully!');
-                        }, (err) => {
-                          alert('Failed to detect location.');
-                        });
-                      }
-                    }}
-                    className="w-full mt-2 bg-accent-50 text-accent-600 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-accent-100 transition-all flex items-center justify-center space-x-2"
+                    disabled={isDetecting}
+                    onClick={() => handleDetectLocation(false)}
+                    className="w-full mt-2 bg-accent-50 text-accent-600 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-accent-100 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
                   >
                     <MapPin size={16} />
-                    <span>{newShop.lat ? 'Location Detected ✓' : 'Detect Location'}</span>
+                    <span>{isDetecting ? 'Detecting...' : (newShop.lat ? 'Location Detected ✓' : 'Detect Location')}</span>
                   </button>
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -1399,20 +1442,12 @@ const AdminDashboard = () => {
                   />
                   <button
                     type="button"
-                    onClick={() => {
-                      if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition((pos) => {
-                          setEditingShop(prev => prev ? ({ ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude }) : null);
-                          alert('Location detected successfully!');
-                        }, (err) => {
-                          alert('Failed to detect location.');
-                        });
-                      }
-                    }}
-                    className="w-full mt-2 bg-accent-50 text-accent-600 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-accent-100 transition-all flex items-center justify-center space-x-2"
+                    disabled={isDetecting}
+                    onClick={() => handleDetectLocation(true)}
+                    className="w-full mt-2 bg-accent-50 text-accent-600 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-accent-100 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
                   >
                     <MapPin size={16} />
-                    <span>{editingShop.lat ? 'Location Detected ✓' : 'Detect Location'}</span>
+                    <span>{isDetecting ? 'Detecting...' : (editingShop.lat ? 'Location Detected ✓' : 'Detect Location')}</span>
                   </button>
                 </div>
                 <div className="space-y-2 md:col-span-2">

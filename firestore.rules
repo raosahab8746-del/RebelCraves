@@ -1,469 +1,102 @@
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    function isAuthenticated() {
-      return request.auth != null;
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "mobileNumber": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer", "delivery", "admin", "vendor"] },
+        "city": { "type": "string" },
+        "isBlocked": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "email", "role"]
+    },
+    "shop": {
+      "title": "Shop",
+      "description": "Local city vendor information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "image": { "type": "string", "format": "uri" },
+        "description": { "type": "string" },
+        "deliveryTime": { "type": "string" }
+      },
+      "required": ["name", "image", "deliveryTime"]
+    },
+    "menuItem": {
+      "title": "Menu Item",
+      "description": "Food item in a shop",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "shopId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string", "format": "uri" },
+        "category": { "type": "string" }
+      },
+      "required": ["shopId", "name", "price", "image"]
+    },
+    "order": {
+      "title": "Order",
+      "description": "Customer order information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "deliveryPartnerId": { "type": "string" },
+        "items": { "type": "array" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "assigned", "out_for_delivery", "delivered", "cancelled"] },
+        "address": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["cod", "upi", "online"] },
+        "paymentStatus": { "type": "string", "enum": ["pending", "paid"] },
+        "paymentCollectedBy": { "type": "string", "enum": ["delivery", "admin"] },
+        "paymentProof": { "type": "string" },
+        "razorpayOrderId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "items", "totalPrice", "status", "address", "paymentMethod", "paymentStatus"]
+    },
+    "deliveryLocation": {
+      "title": "Delivery Location",
+      "description": "Live GPS location of a delivery partner",
+      "type": "object",
+      "properties": {
+        "deliveryPartnerId": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["deliveryPartnerId", "lat", "lng", "updatedAt"]
     }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isSuperAdmin() {
-      return isAuthenticated() &&
-        (('email' in request.auth.token &&
-          (
-            request.auth.token.email.lower() == "raosahab8746@gmail.com" ||
-            request.auth.token.email.lower() == "rebelcravesceo@gmail.com" ||
-            request.auth.token.email.lower() == "rebecravesceo@gmail.com"
-          )) ||
-          request.auth.uid == "Sj5xkRVdOPaq5JTpDEDnuRoob0X2" ||
-          request.auth.uid == "DzOWDgsIMtdJcv0qzioJvRyUkQp2");
-    }
-
-    function isAdmin() {
-      return isAuthenticated() &&
-        (
-          isSuperAdmin() ||
-          (
-            exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-          )
-        );
-    }
-
-    function isCityAdmin(city) {
-      return isAuthenticated() && (
-        isSuperAdmin() ||
-        (
-          isAdmin() &&
-          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          'city' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.city == city
-        )
-      );
-    }
-
-    function isDeliveryPartner() {
-      return isAuthenticated() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'delivery';
-    }
-
-    function isVendor() {
-      return isAuthenticated() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'vendor';
-    }
-
-    function isNotBlocked() {
-      return isSuperAdmin() ||
-        !isAuthenticated() ||
-        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
-        !('isBlocked' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBlocked == false;
-    }
-
-    function isValidShop(data) {
-      return data.keys().hasOnly([
-        'name',
-        'description',
-        'address',
-        'deliveryTime',
-        'image',
-        'ownerId',
-        'city',
-        'status',
-        'category',
-        'minOrderAmount'
-      ]) &&
-      data.keys().hasAll([
-        'name',
-        'description',
-        'address',
-        'deliveryTime',
-        'image',
-        'city'
-      ]) &&
-      data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-      data.description is string && data.description.size() < 500 &&
-      data.address is string && data.address.size() < 500 &&
-      data.deliveryTime is string && data.deliveryTime.size() < 50 &&
-      data.image is string &&
-      data.city is string &&
-      (!('ownerId' in data) || data.ownerId is string) &&
-      (!('status' in data) || data.status in ['live', 'closed']) &&
-      (!('category' in data) || data.category is string) &&
-      (!('minOrderAmount' in data) || data.minOrderAmount is number);
-    }
-
-    function isValidMenuItem(data, shopId) {
-      return data.keys().hasOnly([
-        'name',
-        'price',
-        'category',
-        'image',
-        'categoryId',
-        'status',
-        'shopId',
-        'createdAt',
-        'description'
-      ]) &&
-      data.keys().hasAll(['name', 'price', 'categoryId']) &&
-      data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-      data.price is number && data.price >= 0 &&
-      data.categoryId is string &&
-      (!('category' in data) || (data.category is string && data.category.size() < 50)) &&
-      (!('image' in data) || data.image is string) &&
-      (!('shopId' in data) || data.shopId is string) &&
-      (!('createdAt' in data) || data.createdAt is int || data.createdAt is timestamp) &&
-      (!('description' in data) || data.description is string) &&
-      data.shopId == shopId &&
-      (!('status' in data) || data.status in ['active', 'inactive']);
-    }
-
-    function isValidMenuCategory(data) {
-      return data.keys().hasOnly(['name', 'shopId']) &&
-      data.keys().hasAll(['name', 'shopId']) &&
-      data.name is string && data.name.size() > 0 && data.name.size() < 50 &&
-      data.shopId is string;
-    }
-
-    function isValidUser(data) {
-      return data.keys().hasOnly([
-        'uid',
-        'fullName',
-        'email',
-        'mobileNumber',
-        'role',
-        'createdAt',
-        'city',
-        'isBlocked',
-        'isActive',
-        'updatedAt'
-      ]) &&
-      data.keys().hasAll(['uid', 'fullName', 'email', 'role', 'createdAt']) &&
-      data.uid is string &&
-      data.fullName is string && data.fullName.size() > 0 && data.fullName.size() < 100 &&
-      data.email is string &&
-      data.role in ['customer', 'delivery', 'admin', 'vendor'] &&
-      data.createdAt is timestamp &&
-      (!('mobileNumber' in data) || (data.mobileNumber is string && data.mobileNumber.size() <= 15)) &&
-      (!('city' in data) || (data.city is string)) &&
-      (!('isBlocked' in data) || (data.isBlocked is bool)) &&
-      (!('isActive' in data) || (data.isActive is bool)) &&
-      (!('updatedAt' in data) || (data.updatedAt is timestamp));
-    }
-
-    function isValidOrder(data) {
-      return data.keys().hasAll([
-        'customerId',
-        'items',
-        'totalPrice',
-        'status',
-        'address',
-        'paymentMethod',
-        'paymentStatus',
-        'createdAt',
-        'city',
-        'deliveryCharge',
-        'shopIds'
-      ]) &&
-      data.keys().hasOnly([
-        'customerId',
-        'customerName',
-        'items',
-        'totalPrice',
-        'status',
-        'address',
-        'paymentMethod',
-        'paymentStatus',
-        'createdAt',
-        'deliveryPartnerId',
-        'paymentCollectedBy',
-        'paymentProof',
-        'razorpayOrderId',
-        'hasGroceries',
-        'customerMobile',
-        'deliveryPartnerMobile',
-        'city',
-        'deliveryCharge',
-        'cancellationReason',
-        'cancelledBy',
-        'shopIds',
-        'etaMins',
-        'etaUpdatedAt',
-        'discountAmount',
-        'couponCode',
-        'vendorRevenue',
-        'deliveryRevenue',
-        'adminRevenue',
-        'shopName',
-        'shopAddress',
-        'specialInstructions'
-      ]) &&
-      data.customerId is string &&
-      data.items is list &&
-      data.totalPrice is number && data.totalPrice >= 0 &&
-      data.deliveryCharge is number && data.deliveryCharge >= 0 &&
-      data.status in ['pending', 'assigned', 'picked_up', 'out_for_delivery', 'arrived', 'delivered', 'cancelled'] &&
-      data.address is string && data.address.size() > 0 && data.address.size() < 500 &&
-      data.city is string &&
-      data.paymentMethod in ['cod', 'upi', 'online'] &&
-      data.paymentStatus in ['pending', 'paid'] &&
-      data.createdAt is timestamp &&
-      (!('cancellationReason' in data) || data.cancellationReason is string) &&
-      (!('cancelledBy' in data) || data.cancelledBy in ['customer', 'vendor', 'admin']) &&
-      data.shopIds is list &&
-      (!('etaMins' in data) || data.etaMins is int) &&
-      (!('etaUpdatedAt' in data) || data.etaUpdatedAt is timestamp) &&
-      (!('customerName' in data) || data.customerName is string) &&
-      (!('discountAmount' in data) || data.discountAmount is number) &&
-      (!('couponCode' in data) || data.couponCode is string || data.couponCode == null) &&
-      (!('vendorRevenue' in data) || data.vendorRevenue is number) &&
-      (!('deliveryRevenue' in data) || data.deliveryRevenue is number) &&
-      (!('adminRevenue' in data) || data.adminRevenue is number);
-    }
-
-    function isShopOwner(shopId) {
-      return isAuthenticated() &&
-        exists(/databases/$(database)/documents/shops/$(shopId)) &&
-        get(/databases/$(database)/documents/shops/$(shopId)).data.ownerId == request.auth.uid;
-    }
-
-    match /shops/{shopId} {
-      allow read: if true;
-
-      allow create: if isNotBlocked() &&
-        isAdmin() &&
-        isValidShop(request.resource.data) &&
-        (isSuperAdmin() || isCityAdmin(request.resource.data.city));
-
-      allow update: if isNotBlocked() &&
-        (
-          isSuperAdmin() ||
-          isCityAdmin(resource.data.city) ||
-          isShopOwner(shopId)
-        ) &&
-        isValidShop(request.resource.data);
-
-      allow delete: if isNotBlocked() &&
-        (
-          isSuperAdmin() ||
-          (('city' in resource.data) && isCityAdmin(resource.data.city))
-        );
-
-      match /menu/{itemId} {
-        allow read: if true;
-
-        allow create: if isNotBlocked() &&
-          (
-            isSuperAdmin() ||
-            (
-              exists(/databases/$(database)/documents/shops/$(shopId)) &&
-              isCityAdmin(get(/databases/$(database)/documents/shops/$(shopId)).data.city)
-            ) ||
-            isShopOwner(shopId)
-          ) &&
-          isValidMenuItem(request.resource.data, shopId);
-
-        allow update: if isNotBlocked() &&
-          (
-            isSuperAdmin() ||
-            (
-              exists(/databases/$(database)/documents/shops/$(shopId)) &&
-              isCityAdmin(get(/databases/$(database)/documents/shops/$(shopId)).data.city)
-            ) ||
-            isShopOwner(shopId)
-          ) &&
-          isValidMenuItem(request.resource.data, shopId);
-
-        allow delete: if isNotBlocked() &&
-          (
-            isSuperAdmin() ||
-            (
-              exists(/databases/$(database)/documents/shops/$(shopId)) &&
-              isCityAdmin(get(/databases/$(database)/documents/shops/$(shopId)).data.city)
-            ) ||
-            isShopOwner(shopId)
-          );
-      }
-
-      match /menuCategories/{categoryId} {
-        allow read: if true;
-
-        allow create: if isNotBlocked() &&
-          (
-            isSuperAdmin() ||
-            (
-              exists(/databases/$(database)/documents/shops/$(shopId)) &&
-              isCityAdmin(get(/databases/$(database)/documents/shops/$(shopId)).data.city)
-            ) ||
-            isShopOwner(shopId)
-          ) &&
-          isValidMenuCategory(request.resource.data);
-
-        allow update: if isNotBlocked() &&
-          (
-            isSuperAdmin() ||
-            (
-              exists(/databases/$(database)/documents/shops/$(shopId)) &&
-              isCityAdmin(get(/databases/$(database)/documents/shops/$(shopId)).data.city)
-            ) ||
-            isShopOwner(shopId)
-          ) &&
-          isValidMenuCategory(request.resource.data);
-
-        allow delete: if isNotBlocked() &&
-          (
-            isSuperAdmin() ||
-            (
-              exists(/databases/$(database)/documents/shops/$(shopId)) &&
-              isCityAdmin(get(/databases/$(database)/documents/shops/$(shopId)).data.city)
-            ) ||
-            isShopOwner(shopId)
-          );
-      }
-    }
-
-    match /orders/{orderId} {
-      allow read: if isNotBlocked() && isAuthenticated() && (
-        isSuperAdmin() ||
-        request.auth.uid == resource.data.customerId ||
-        request.auth.uid == resource.data.deliveryPartnerId ||
-        isCityAdmin(resource.data.city) ||
-        isVendor()
-      );
-
-      allow create: if isNotBlocked() &&
-        isAuthenticated() &&
-        isValidOrder(request.resource.data) &&
-        (isSuperAdmin() || request.resource.data.customerId == request.auth.uid);
-
-      allow update: if isNotBlocked() && isAuthenticated() && (
-        isSuperAdmin() ||
-        isCityAdmin(resource.data.city) ||
-        (isDeliveryPartner() && request.auth.uid == resource.data.deliveryPartnerId) ||
-        (
-          isOwner(resource.data.customerId) &&
-          (resource.data.status == 'pending' || resource.data.status == 'assigned') &&
-          (request.resource.data.status == 'cancelled' || request.resource.data.status == 'pending' || request.resource.data.status == 'assigned')
-        ) ||
-        (isVendor() && request.resource.data.status == 'cancelled')
-      );
-
-      allow delete: if isNotBlocked() && isAuthenticated() && (
-        isSuperAdmin() ||
-        isCityAdmin(resource.data.city) ||
-        (
-          isVendor() &&
-          (resource.data.status == 'delivered' || resource.data.status == 'cancelled')
-        )
-      );
-    }
-
-    match /users/{userId} {
-      allow get: if isAuthenticated() &&
-        (request.auth.uid == userId || isSuperAdmin() || isAdmin());
-
-      allow list: if isAuthenticated() &&
-        (isSuperAdmin() || isAdmin());
-
-      allow create: if isAuthenticated() &&
-        isValidUser(request.resource.data) &&
-        request.resource.data.uid == request.auth.uid &&
-        (request.resource.data.role == 'customer' || isSuperAdmin());
-
-      allow update: if isAuthenticated() && (
-        isSuperAdmin() ||
-
-        (
-          isNotBlocked() &&
-          isCityAdmin(resource.data.city) &&
-          resource.data.email.lower() != "rebelcravesceo@gmail.com" &&
-          resource.data.email.lower() != "rebecravesceo@gmail.com"
-        ) ||
-
-        (
-          isOwner(userId) &&
-          isNotBlocked() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'fullName',
-            'mobileNumber',
-            'city',
-            'isActive',
-            'updatedAt'
-          ])
-        )
-      );
-
-      allow delete: if isAuthenticated() &&
-        isSuperAdmin() &&
-        resource.data.email.lower() != "rebelcravesceo@gmail.com" &&
-        resource.data.email.lower() != "rebecravesceo@gmail.com";
-    }
-
-    match /locations/{deliveryPartnerId} {
-      allow read: if isNotBlocked() && isAuthenticated();
-      allow write: if isNotBlocked() && isOwner(deliveryPartnerId) && isDeliveryPartner();
-    }
-
-    match /groceryCategories/{categoryId} {
-      allow read: if true;
-      allow write: if isNotBlocked() && isAdmin();
-    }
-
-    match /groceries/{itemId} {
-      allow read: if true;
-      allow write: if isNotBlocked() && isAdmin();
-    }
-
-    match /settings/{settingId} {
-      allow read: if true;
-      allow write: if isNotBlocked() && (
-        isSuperAdmin() ||
-        (
-          isDeliveryPartner() &&
-          settingId == 'payment' &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isWeatherSurchargeActive'])
-        )
-      );
-    }
-
-    match /coupons/{couponId} {
-      allow read: if true;
-      allow write: if isNotBlocked() && isAdmin();
-    }
-
-    match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && (
-        isSuperAdmin() || 
-        isAdmin() || 
-        !('userId' in resource.data) || 
-        resource.data.userId == request.auth.uid ||
-        (resource.data.type == 'broadcast' && (
-          !('city' in resource.data) || 
-          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-           resource.data.city == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.city)
-        ))
-      );
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        isSuperAdmin() || 
-        isAdmin() || 
-        (resource.data.userId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']))
-      );
-      allow delete: if isSuperAdmin() || isAdmin();
-    }
-
-    match /banners/{bannerId} {
-      allow read: if true;
-      allow write: if isNotBlocked() && isAdmin();
-    }
-
-    match /test/connection {
-      allow read: if true;
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "User profile"
+    },
+    "/shops/{shopId}": {
+      "schema": "shop",
+      "description": "City vendors"
+    },
+    "/shops/{shopId}/menu/{itemId}": {
+      "schema": "menuItem",
+      "description": "Menu items for a shop"
+    },
+    "/orders/{orderId}": {
+      "schema": "order",
+      "description": "Customer orders"
+    },
+    "/locations/{deliveryPartnerId}": {
+      "schema": "deliveryLocation",
+      "description": "Live GPS locations"
     }
   }
 }
