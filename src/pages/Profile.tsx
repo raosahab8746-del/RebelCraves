@@ -11,7 +11,7 @@ import { SavedAddress } from '../types';
 const Profile = () => {
   const { profile, loading } = useAuth();
   const [showAddAddress, setShowAddAddress] = useState(false);
-  const [newAddress, setNewAddress] = useState({ label: '', fullAddress: '' });
+  const [newAddress, setNewAddress] = useState<{ label: string; fullAddress: string; lat?: number; lng?: number }>({ label: '', fullAddress: '' });
   const [isSaving, setIsSaving] = useState(false);
 
   const handleAddAddress = async (e: React.FormEvent) => {
@@ -23,7 +23,9 @@ const Profile = () => {
       const address: SavedAddress = {
         id: Math.random().toString(36).substr(2, 9),
         label: newAddress.label,
-        fullAddress: newAddress.fullAddress
+        fullAddress: newAddress.fullAddress,
+        lat: newAddress.lat,
+        lng: newAddress.lng
       };
 
       await updateDoc(doc(db, 'users', profile.uid), {
@@ -195,6 +197,24 @@ const Profile = () => {
                     className="w-full bg-navy-50 border-2 border-transparent rounded-2xl px-5 py-3.5 focus:outline-none focus:border-navy-500 focus:bg-white transition-all h-32 font-bold text-navy-900 placeholder:text-gray-300"
                     placeholder="Building, Street, Landmark..."
                   />
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition((pos) => {
+                          setNewAddress(prev => ({ ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude }));
+                          alert('Location detected successfully!');
+                        }, (err) => {
+                          alert('Failed to detect location.');
+                        });
+                      }
+                    }}
+                    className="w-full mt-2 bg-accent-50 text-accent-600 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-accent-100 transition-all flex items-center justify-center space-x-2"
+                  >
+                    <MapPin size={16} />
+                    <span>{newAddress.lat ? 'Location Detected ✓' : 'Detect Location'}</span>
+                  </button>
                 </div>
                 <button
                   disabled={isSaving}

@@ -4,11 +4,11 @@ import { collection, addDoc, serverTimestamp, doc, onSnapshot, query, where, get
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { formatPrice, resizeImage } from '../lib/utils';
+import { formatPrice, resizeImage, calculateDistance } from '../lib/utils';
 import { Truck, MapPin, Smartphone, ShoppingBag, QrCode, CreditCard, Tag, X, Upload, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SUPER_ADMIN_CONFIG } from '../constants';
-import { Coupon, Shop } from '../types';
+import { Coupon, Shop, SystemSettings } from '../types';
 import { sendNotification } from '../components/NotificationCenter';
 
 const Checkout = () => {
@@ -16,6 +16,8 @@ const Checkout = () => {
   const { items, totalPrice, clearCart } = useCart();
   const [address, setAddress] = useState('');
   const [customerCoords, setCustomerCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [shopCoords, setShopCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [distanceKm, setDistanceKm] = useState<number>(0);
   const [selectedAddressId, setSelectedAddressId] = useState<string | 'new'>('new');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'upi'>('cod');
@@ -25,7 +27,7 @@ const Checkout = () => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState('');
-  const [adminSettings, setAdminSettings] = useState({ 
+  const [adminSettings, setAdminSettings] = useState<SystemSettings>({ 
     upiId: SUPER_ADMIN_CONFIG.upiId, 
     upiQR: SUPER_ADMIN_CONFIG.upiQR, 
     isUpiEnabled: true,
@@ -39,7 +41,13 @@ const Checkout = () => {
     globalMinOrderAmount: 0,
     deliveryPayoutBase: 0,
     deliveryPayoutPercentage: 0,
-    vendorCommissionPercentage: 0
+    vendorCommissionPercentage: 0,
+    banners: [],
+    supportEmail: '',
+    supportPhone: '',
+    deliveryChargePerKmBeyond3: 0,
+    gstType: 'percentage',
+    gstValue: 0
   });
   const navigate = useNavigate();
 
@@ -47,14 +55,45 @@ const Checkout = () => {
     if (profile?.addresses && profile.addresses.length > 0) {
       setSelectedAddressId(profile.addresses[0].id);
       setAddress(profile.addresses[0].fullAddress);
+      if (profile.addresses[0].lat && profile.addresses[0].lng) {
+        setCustomerCoords({ lat: profile.addresses[0].lat, lng: profile.addresses[0].lng });
+      }
     }
   }, [profile]);
+
+  React.useEffect(() => {
+    const fetchShopCoords = async () => {
+      if (items.length > 0) {
+        const shopId = items[0].shopId;
+        if (shopId) {
+          const shopSnap = await getDoc(doc(db, 'shops', shopId));
+          if (shopSnap.exists()) {
+            const shopData = shopSnap.data() as Shop;
+            if (shopData.lat && shopData.lng) {
+              setShopCoords({ lat: shopData.lat, lng: shopData.lng });
+            }
+          }
+        }
+      }
+    };
+    fetchShopCoords();
+  }, [items]);
+
+  React.useEffect(() => {
+    if (customerCoords && shopCoords) {
+      const dist = calculateDistance(customerCoords.lat, customerCoords.lng, shopCoords.lat, shopCoords.lng);
+      setDistanceKm(dist);
+    } else {
+      setDistanceKm(0);
+    }
+  }, [customerCoords, shopCoords]);
 
   React.useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'payment'), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
-        setAdminSettings({ 
+        setAdminSettings(prev => ({ 
+          ...prev,
           upiId: data.upiId ?? SUPER_ADMIN_CONFIG.upiId, 
           upiQR: data.upiQR ?? SUPER_ADMIN_CONFIG.upiQR,
           isUpiEnabled: data.isUpiEnabled ?? true,
@@ -68,8 +107,11 @@ const Checkout = () => {
           globalMinOrderAmount: data.globalMinOrderAmount ?? 0,
           deliveryPayoutBase: data.deliveryPayoutBase ?? 0,
           deliveryPayoutPercentage: data.deliveryPayoutPercentage ?? 0,
-          vendorCommissionPercentage: data.vendorCommissionPercentage ?? 0
-        });
+          vendorCommissionPercentage: data.vendorCommissionPercentage ?? 0,
+          deliveryChargePerKmBeyond3: data.deliveryChargePerKmBeyond3 ?? 0,
+          gstType: data.gstType ?? 'percentage',
+          gstValue: data.gstValue ?? 0
+        }));
 
         // If current payment method is disabled, switch to the other one
         setPaymentMethod(prev => {
@@ -107,9 +149,25 @@ const Checkout = () => {
 
   // Calculate delivery charge based on settings
   const percentageCharge = (totalPrice * adminSettings.orderPercentageCharge) / 100;
+  
+  // Distance based delivery charge
+  let distanceCharge = 0;
+  let baseDeliveryCharge = adminSettings.baseDeliveryCharge;
+
+  // If distance is detected, use 10% as base delivery charge
+  if (distanceKm > 0) {
+    baseDeliveryCharge = (totalPrice * 10) / 100;
+    
+    // Add extra charge for distance beyond 3km
+    if (distanceKm > 3 && adminSettings.deliveryChargePerKmBeyond3) {
+      distanceCharge = Math.ceil(distanceKm - 3) * adminSettings.deliveryChargePerKmBeyond3;
+    }
+  }
+
   const deliveryCharge = 
-    adminSettings.baseDeliveryCharge + 
+    baseDeliveryCharge + 
     percentageCharge + 
+    distanceCharge +
     (adminSettings.isPeakHourActive ? adminSettings.peakHourSurcharge : 0) + 
     (adminSettings.isWeatherSurchargeActive ? adminSettings.weatherSurcharge : 0);
 
@@ -119,7 +177,19 @@ const Checkout = () => {
         : appliedCoupon.discountValue)
     : 0;
 
-  const finalTotal = totalPrice + deliveryCharge - discountAmount;
+  const subtotalAfterDiscount = totalPrice - discountAmount;
+
+  // Calculate GST
+  let gstAmount = 0;
+  if (adminSettings.gstValue && adminSettings.gstValue > 0) {
+    if (adminSettings.gstType === 'percentage') {
+      gstAmount = (subtotalAfterDiscount * adminSettings.gstValue) / 100;
+    } else {
+      gstAmount = adminSettings.gstValue;
+    }
+  }
+
+  const finalTotal = subtotalAfterDiscount + deliveryCharge + gstAmount;
 
   const handleImageUpload = async (file: File) => {
     try {
@@ -190,6 +260,8 @@ const Checkout = () => {
         deliveryCharge: deliveryCharge,
         discountAmount,
         couponCode: appliedCoupon?.code || null,
+        gstAmount,
+        distanceKm,
         vendorRevenue,
         deliveryRevenue,
         adminRevenue,
@@ -275,6 +347,11 @@ const Checkout = () => {
                     onClick={() => {
                       setSelectedAddressId(addr.id);
                       setAddress(addr.fullAddress);
+                      if (addr.lat && addr.lng) {
+                        setCustomerCoords({ lat: addr.lat, lng: addr.lng });
+                      } else {
+                        setCustomerCoords(null);
+                      }
                     }}
                     className={`p-4 rounded-2xl border-2 text-left transition-all ${
                       selectedAddressId === addr.id
@@ -538,33 +615,62 @@ const Checkout = () => {
               </div>
 
               <div className="flex justify-between text-sm font-bold">
-                <span className="text-gray-400 uppercase tracking-widest">Subtotal</span>
+                <span className="text-gray-400 uppercase tracking-widest">Items Total</span>
                 <span className="text-navy-900">{formatPrice(totalPrice)}</span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-sm font-bold">
-                  <span className="text-accent-600 uppercase tracking-widest">Discount</span>
+                  <span className="text-accent-600 uppercase tracking-widest">Coupon Discount</span>
                   <span className="text-accent-600">-{formatPrice(discountAmount)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm font-bold">
-                <span className="text-gray-400 uppercase tracking-widest">Delivery</span>
-                <div className="text-right">
-                  <span className={deliveryCharge > 0 ? 'text-navy-900' : 'text-accent-600'}>
-                    {deliveryCharge > 0 ? formatPrice(deliveryCharge) : 'FREE'}
-                  </span>
-                  {(adminSettings.isPeakHourActive || adminSettings.isWeatherSurchargeActive) && (
-                    <div className="flex flex-col items-end mt-1">
-                      {adminSettings.isPeakHourActive && (
-                        <span className="text-[8px] font-black text-accent-600 uppercase tracking-widest bg-accent-50 px-1.5 py-0.5 rounded-md border border-accent-100">Peak Surcharge: +₹{adminSettings.peakHourSurcharge}</span>
-                      )}
-                      {adminSettings.isWeatherSurchargeActive && (
-                        <span className="text-[8px] font-black text-accent-600 uppercase tracking-widest bg-accent-50 px-1.5 py-0.5 rounded-md border border-accent-100 mt-0.5">Weather Surcharge: +₹{adminSettings.weatherSurcharge}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
+              
+              <div className="space-y-2 border-t border-gray-50 pt-4">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Charges Breakdown</p>
+                
+                {baseDeliveryCharge > 0 && (
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-gray-500">Base Delivery Fee (10%)</span>
+                    <span className="text-navy-900">{formatPrice(baseDeliveryCharge)}</span>
+                  </div>
+                )}
+                
+                {percentageCharge > 0 && (
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-gray-500">Order Processing Fee ({adminSettings.orderPercentageCharge}%)</span>
+                    <span className="text-navy-900">{formatPrice(percentageCharge)}</span>
+                  </div>
+                )}
+
+                {distanceCharge > 0 && (
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-gray-500">Distance Surcharge ({Math.ceil(distanceKm - 3)} km)</span>
+                    <span className="text-navy-900">{formatPrice(distanceCharge)}</span>
+                  </div>
+                )}
+                
+                {adminSettings.isPeakHourActive && adminSettings.peakHourSurcharge > 0 && (
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-accent-600">Peak Hour Surcharge</span>
+                    <span className="text-accent-600">{formatPrice(adminSettings.peakHourSurcharge)}</span>
+                  </div>
+                )}
+                
+                {adminSettings.isWeatherSurchargeActive && adminSettings.weatherSurcharge > 0 && (
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-accent-600">Weather Surcharge</span>
+                    <span className="text-accent-600">{formatPrice(adminSettings.weatherSurcharge)}</span>
+                  </div>
+                )}
+
+                {gstAmount > 0 && (
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-gray-500">GST ({adminSettings.gstType === 'percentage' ? `${adminSettings.gstValue}%` : 'Fixed'})</span>
+                    <span className="text-navy-900">{formatPrice(gstAmount)}</span>
+                  </div>
+                )}
               </div>
+
               <div className="flex justify-between text-3xl font-black text-navy-900 pt-6 border-t border-gray-50">
                 <span className="uppercase tracking-tighter">TOTAL</span>
                 <span>{formatPrice(finalTotal)}</span>

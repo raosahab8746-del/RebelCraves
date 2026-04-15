@@ -4,6 +4,8 @@ export interface SavedAddress {
   id: string;
   label: string; // e.g., 'Home', 'Work', 'Other'
   fullAddress: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface UserProfile {
@@ -32,6 +34,8 @@ export interface Shop {
   image: string;
   description: string;
   address?: string; // Physical address of the shop
+  lat?: number;
+  lng?: number;
   deliveryTime: string;
   ownerId?: string; // UID of the vendor
   city: string; // City where the shop is located
@@ -112,6 +116,8 @@ export interface Order {
   adminRevenue?: number;
   couponCode?: string;
   discountAmount?: number;
+  gstAmount?: number;
+  distanceKm?: number;
 }
 
 export interface AppBanner {
@@ -154,6 +160,10 @@ export interface SystemSettings {
   banners: AppBanner[];
   supportEmail: string;
   supportPhone: string;
+  // New fields for delivery and GST
+  deliveryChargePerKmBeyond3?: number;
+  gstType?: 'percentage' | 'fixed';
+  gstValue?: number;
 }
 
 export interface DeliveryLocation {

@@ -6,8 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     url: 'https://rebelcraves.in',
-    cleartext: false
-  }
+    cleartext: false,
+    androidScheme: 'https'  }
 };
 
 export default config;

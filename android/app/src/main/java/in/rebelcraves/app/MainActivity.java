@@ -4,6 +4,8 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.ImageView;
 
 import com.getcapacitor.BridgeActivity;
@@ -17,23 +19,25 @@ public class MainActivity extends BridgeActivity {
         ImageView ringLoader = findViewById(getResources().getIdentifier("ringLoader", "id", getPackageName()));
 
         if (logoImage != null) {
-            Animation pulseAnim = AnimationUtils.loadAnimation(this, getResources().getIdentifier("logo_pulse", "anim", getPackageName()));
+            Animation pulseAnim = AnimationUtils.loadAnimation(this, R.anim.logo_pulse);
             logoImage.startAnimation(pulseAnim);
         }
 
         if (ringLoader != null) {
-            Animation rotateAnim = AnimationUtils.loadAnimation(this, getResources().getIdentifier("ring_rotate", "anim", getPackageName()));
+            Animation rotateAnim = AnimationUtils.loadAnimation(this, R.anim.ring_rotate);
             ringLoader.startAnimation(rotateAnim);
         }
 
-        getBridge().getWebView().setWebViewClient(new android.webkit.WebViewClient() {
-            @Override
-            public void onPageFinished(android.webkit.WebView view, String url) {
-                View loadingLayout = findViewById(getResources().getIdentifier("loadingLayout", "id", getPackageName()));
-                if (loadingLayout != null) {
-                    loadingLayout.setVisibility(View.GONE);
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().setWebViewClient(new WebViewClient() {
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    View loadingLayout = findViewById(getResources().getIdentifier("loadingLayout", "id", getPackageName()));
+                    if (loadingLayout != null) {
+                        loadingLayout.setVisibility(View.GONE);
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 }

@@ -204,7 +204,18 @@ const AdminDashboard = () => {
     name: '',
     image: ''
   });
-  const [newShop, setNewShop] = useState({
+  const [newShop, setNewShop] = useState<{
+    name: string;
+    description: string;
+    address: string;
+    deliveryTime: string;
+    image: string;
+    ownerId: string;
+    city: string;
+    minOrderAmount: string;
+    lat?: number;
+    lng?: number;
+  }>({
     name: '',
     description: '',
     address: '',
@@ -329,6 +340,9 @@ const AdminDashboard = () => {
           deliveryPayoutBase: data.deliveryPayoutBase ?? 0,
           deliveryPayoutPercentage: data.deliveryPayoutPercentage ?? 0,
           vendorCommissionPercentage: data.vendorCommissionPercentage ?? 0,
+          deliveryChargePerKmBeyond3: data.deliveryChargePerKmBeyond3 ?? 0,
+          gstType: data.gstType ?? 'percentage',
+          gstValue: data.gstValue ?? 0,
           banners: data.banners ?? [],
           supportEmail: data.supportEmail ?? '',
           supportPhone: data.supportPhone ?? ''
@@ -787,6 +801,62 @@ const AdminDashboard = () => {
     }
   };
 
+  const [oldCityName, setOldCityName] = useState('');
+  const [newCityName, setNewCityName] = useState('');
+  const [isMergingCities, setIsMergingCities] = useState(false);
+
+  const handleMergeCities = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!oldCityName || !newCityName) return;
+    if (oldCityName.toLowerCase() === newCityName.toLowerCase()) {
+      alert("Old and new city names cannot be the same.");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to merge all data from "${oldCityName}" to "${newCityName}"? This action will update all users, shops, and orders from "${oldCityName}" to "${newCityName}". This cannot be undone.`)) {
+      return;
+    }
+
+    setIsMergingCities(true);
+    try {
+      // 1. Update Users
+      const usersQuery = query(collection(db, 'users'), where('city', '==', oldCityName));
+      const usersSnap = await getDocs(usersQuery);
+      const userUpdates = usersSnap.docs.map(d => updateDoc(doc(db, 'users', d.id), { city: newCityName }));
+
+      // 2. Update Shops
+      const shopsQuery = query(collection(db, 'shops'), where('city', '==', oldCityName));
+      const shopsSnap = await getDocs(shopsQuery);
+      const shopUpdates = shopsSnap.docs.map(d => updateDoc(doc(db, 'shops', d.id), { city: newCityName }));
+
+      // 3. Update Orders
+      const ordersQuery = query(collection(db, 'orders'), where('city', '==', oldCityName));
+      const ordersSnap = await getDocs(ordersQuery);
+      const orderUpdates = ordersSnap.docs.map(d => updateDoc(doc(db, 'orders', d.id), { city: newCityName }));
+
+      // 4. Update Banners
+      const bannersQuery = query(collection(db, 'banners'), where('city', '==', oldCityName));
+      const bannersSnap = await getDocs(bannersQuery);
+      const bannerUpdates = bannersSnap.docs.map(d => updateDoc(doc(db, 'banners', d.id), { city: newCityName }));
+
+      // 5. Update Notifications
+      const notificationsQuery = query(collection(db, 'notifications'), where('city', '==', oldCityName));
+      const notificationsSnap = await getDocs(notificationsQuery);
+      const notificationUpdates = notificationsSnap.docs.map(d => updateDoc(doc(db, 'notifications', d.id), { city: newCityName }));
+
+      await Promise.all([...userUpdates, ...shopUpdates, ...orderUpdates, ...bannerUpdates, ...notificationUpdates]);
+
+      alert(`Successfully merged ${usersSnap.size} users, ${shopsSnap.size} shops, ${ordersSnap.size} orders, ${bannersSnap.size} banners, and ${notificationsSnap.size} notifications from "${oldCityName}" to "${newCityName}".`);
+      setOldCityName('');
+      setNewCityName('');
+    } catch (error) {
+      console.error("Error merging cities:", error);
+      alert("Failed to merge cities. See console for details.");
+    } finally {
+      setIsMergingCities(false);
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingSettings(true);
@@ -1184,6 +1254,23 @@ const AdminDashboard = () => {
                     className="w-full bg-navy-50 border-2 border-transparent rounded-2xl px-5 py-3.5 focus:outline-none focus:border-navy-500 focus:bg-white transition-all font-bold text-navy-900 placeholder:text-gray-300 h-24 resize-none"
                     placeholder="Physical address for delivery partners..."
                   />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition((pos) => {
+                          setNewShop(prev => ({ ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude }));
+                          alert('Location detected successfully!');
+                        }, (err) => {
+                          alert('Failed to detect location.');
+                        });
+                      }
+                    }}
+                    className="w-full mt-2 bg-accent-50 text-accent-600 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-accent-100 transition-all flex items-center justify-center space-x-2"
+                  >
+                    <MapPin size={16} />
+                    <span>{newShop.lat ? 'Location Detected ✓' : 'Detect Location'}</span>
+                  </button>
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Description</label>
@@ -1300,6 +1387,33 @@ const AdminDashboard = () => {
                     className="w-full bg-navy-50 border-2 border-transparent rounded-2xl px-5 py-3.5 focus:outline-none focus:border-navy-500 focus:bg-white transition-all font-bold text-navy-900 disabled:opacity-70"
                     placeholder="Enter city name..."
                   />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Shop Address</label>
+                  <textarea
+                    required
+                    value={editingShop.address || ''}
+                    onChange={(e) => setEditingShop({ ...editingShop, address: e.target.value })}
+                    className="w-full bg-navy-50 border-2 border-transparent rounded-2xl px-5 py-3.5 focus:outline-none focus:border-navy-500 focus:bg-white transition-all font-bold text-navy-900 placeholder:text-gray-300 h-24 resize-none"
+                    placeholder="Physical address for delivery partners..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition((pos) => {
+                          setEditingShop(prev => prev ? ({ ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude }) : null);
+                          alert('Location detected successfully!');
+                        }, (err) => {
+                          alert('Failed to detect location.');
+                        });
+                      }
+                    }}
+                    className="w-full mt-2 bg-accent-50 text-accent-600 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-accent-100 transition-all flex items-center justify-center space-x-2"
+                  >
+                    <MapPin size={16} />
+                    <span>{editingShop.lat ? 'Location Detected ✓' : 'Detect Location'}</span>
+                  </button>
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Description</label>
@@ -1950,6 +2064,46 @@ const AdminDashboard = () => {
                       placeholder="e.g. 100"
                     />
                   </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Delivery Charge Per Km Beyond 3km (₹)</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-navy-50 border-2 border-navy-100 rounded-2xl focus:outline-none focus:border-navy-900 transition-all font-bold"
+                      value={settings.deliveryChargePerKmBeyond3 || 0}
+                      onChange={e => {
+                        const val = e.target.value === '' ? 0 : Number(e.target.value);
+                        setSettings({ ...settings, deliveryChargePerKmBeyond3: val });
+                      }}
+                      placeholder="e.g. 5"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">GST Type</label>
+                    <select
+                      className="w-full px-6 py-4 bg-navy-50 border-2 border-navy-100 rounded-2xl focus:outline-none focus:border-navy-900 transition-all font-bold appearance-none"
+                      value={settings.gstType || 'percentage'}
+                      onChange={e => setSettings({ ...settings, gstType: e.target.value as 'percentage' | 'fixed' })}
+                    >
+                      <option value="percentage">Percentage (%)</option>
+                      <option value="fixed">Fixed Amount (₹)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">GST Value</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-navy-50 border-2 border-navy-100 rounded-2xl focus:outline-none focus:border-navy-900 transition-all font-bold"
+                      value={settings.gstValue || 0}
+                      onChange={e => {
+                        const val = e.target.value === '' ? 0 : Number(e.target.value);
+                        setSettings({ ...settings, gstValue: val });
+                      }}
+                      placeholder="e.g. 5"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-6">
@@ -2180,6 +2334,54 @@ const AdminDashboard = () => {
                 {isSavingSettings ? 'Saving...' : 'Save Settings'}
               </button>
             </form>
+
+            {/* City Merge Section */}
+            <div className="mt-16 pt-16 border-t border-gray-100">
+              <div className="flex items-center space-x-3 mb-8">
+                <div className="w-12 h-12 bg-accent-50 rounded-2xl flex items-center justify-center text-accent-600">
+                  <MapPin size={24} strokeWidth={3} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-navy-900 tracking-tight uppercase">Merge Cities</h3>
+                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Combine data from two city names into one</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleMergeCities} className="space-y-6 max-w-4xl bg-navy-50 p-8 rounded-[2.5rem] border border-navy-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Old City Name</label>
+                    <input
+                      type="text"
+                      required
+                      className="w-full px-6 py-4 bg-white border-2 border-navy-100 rounded-2xl focus:outline-none focus:border-navy-900 transition-all font-bold"
+                      value={oldCityName}
+                      onChange={e => setOldCityName(e.target.value)}
+                      placeholder="e.g. Rupnagar"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">New City Name (Target)</label>
+                    <input
+                      type="text"
+                      required
+                      className="w-full px-6 py-4 bg-white border-2 border-navy-100 rounded-2xl focus:outline-none focus:border-navy-900 transition-all font-bold"
+                      value={newCityName}
+                      onChange={e => setNewCityName(e.target.value)}
+                      placeholder="e.g. Ropar"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={isMergingCities || !oldCityName || !newCityName}
+                  className="w-full bg-accent-500 text-navy-900 py-4 rounded-2xl font-black text-lg hover:bg-accent-400 transition-all shadow-lg shadow-accent-500/20 disabled:opacity-50 active:scale-95 uppercase tracking-tighter"
+                >
+                  {isMergingCities ? 'Merging...' : 'Merge Cities'}
+                </button>
+                <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest text-center">Warning: This action will update all users, shops, and orders and cannot be undone.</p>
+              </form>
+            </div>
           </div>
         </div>
       )}
