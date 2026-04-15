@@ -233,6 +233,7 @@ const Checkout = () => {
   }
 
   const finalTotal = subtotalAfterDiscount + deliveryCharge + gstAmount;
+  const isDistanceEstimated = !!(customerCoords && shopCoords);
 
   const handleImageUpload = async (file: File) => {
     try {
@@ -251,6 +252,11 @@ const Checkout = () => {
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
+
+    if (!address.trim()) {
+      alert('Please enter or detect your delivery address before placing the order.');
+      return;
+    }
 
     if (paymentMethod === 'upi' && !paymentProof) {
       alert("Please upload payment proof for UPI payment.");
@@ -663,6 +669,18 @@ const Checkout = () => {
               <div className="space-y-2 border-t border-gray-50 pt-4">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Charges Breakdown</p>
                 
+                {customerCoords && shopCoords ? (
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-gray-500">Distance from shop</span>
+                    <span className="text-navy-900">{distanceKm.toFixed(1)} km</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-gray-500">Distance from shop</span>
+                    <span className="text-accent-600">Detect location to estimate</span>
+                  </div>
+                )}
+
                 {baseDeliveryCharge > 0 && (
                   <div className="flex justify-between text-xs font-bold">
                     <span className="text-gray-500">Base Delivery Fee</span>

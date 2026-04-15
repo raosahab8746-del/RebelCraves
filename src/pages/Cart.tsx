@@ -139,7 +139,11 @@ const Cart = () => {
             <span className="text-gray-400 uppercase tracking-widest">Delivery Fee</span>
             <div className="text-right">
               <span className={deliveryCharge > 0 ? 'text-navy-900' : 'text-accent-600'}>
-                {deliveryCharge > 0 ? formatPrice(deliveryCharge) : 'FREE'}
+                {deliveryCharge > 0
+                  ? formatPrice(deliveryCharge)
+                  : (adminSettings.baseDeliveryCharge === 0 && adminSettings.orderPercentageCharge === 0 && !adminSettings.isPeakHourActive && !adminSettings.isWeatherSurchargeActive)
+                    ? 'Calculated at checkout'
+                    : 'FREE'}
               </span>
               {(adminSettings.isPeakHourActive || adminSettings.isWeatherSurchargeActive) && (
                 <div className="flex flex-col items-end mt-1">
