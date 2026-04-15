@@ -47,10 +47,14 @@ const Checkout = () => {
         let message = 'Failed to detect location.';
         if (err.code === err.PERMISSION_DENIED) {
           message = 'Location permission denied. Please enable it in your browser settings.';
+        } else if (err.code === err.TIMEOUT) {
+          message = 'Location request timed out. Please try again.';
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          message = 'Location information is unavailable.';
         }
         alert(message);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   };
 
@@ -80,7 +84,8 @@ const Checkout = () => {
     banners: [],
     supportEmail: '',
     supportPhone: '',
-    deliveryChargePerKmBeyond3: 0,
+    baseDeliveryDistance: 3,
+    deliveryChargePerKmBeyondBase: 0,
     gstType: 'percentage',
     gstValue: 0
   });
@@ -146,7 +151,8 @@ const Checkout = () => {
           deliveryPayoutBase: data.deliveryPayoutBase ?? 0,
           deliveryPayoutPercentage: data.deliveryPayoutPercentage ?? 0,
           vendorCommissionPercentage: data.vendorCommissionPercentage ?? 0,
-          deliveryChargePerKmBeyond3: data.deliveryChargePerKmBeyond3 ?? 0,
+          baseDeliveryDistance: data.baseDeliveryDistance ?? 3,
+          deliveryChargePerKmBeyondBase: data.deliveryChargePerKmBeyondBase ?? 0,
           gstType: data.gstType ?? 'percentage',
           gstValue: data.gstValue ?? 0
         }));
@@ -191,14 +197,13 @@ const Checkout = () => {
   // Distance based delivery charge
   let distanceCharge = 0;
   let baseDeliveryCharge = adminSettings.baseDeliveryCharge;
+  const baseDistance = adminSettings.baseDeliveryDistance || 3;
 
-  // If distance is detected, use 10% as base delivery charge
+  // If distance is detected, calculate distance charge
   if (distanceKm > 0) {
-    baseDeliveryCharge = (totalPrice * 10) / 100;
-    
-    // Add extra charge for distance beyond 3km
-    if (distanceKm > 3 && adminSettings.deliveryChargePerKmBeyond3) {
-      distanceCharge = Math.ceil(distanceKm - 3) * adminSettings.deliveryChargePerKmBeyond3;
+    // Add extra charge for distance beyond base distance
+    if (distanceKm > baseDistance && adminSettings.deliveryChargePerKmBeyondBase) {
+      distanceCharge = Math.ceil(distanceKm - baseDistance) * adminSettings.deliveryChargePerKmBeyondBase;
     }
   }
 
@@ -660,7 +665,7 @@ const Checkout = () => {
                 
                 {baseDeliveryCharge > 0 && (
                   <div className="flex justify-between text-xs font-bold">
-                    <span className="text-gray-500">Base Delivery Fee (10%)</span>
+                    <span className="text-gray-500">Base Delivery Fee</span>
                     <span className="text-navy-900">{formatPrice(baseDeliveryCharge)}</span>
                   </div>
                 )}
@@ -674,7 +679,7 @@ const Checkout = () => {
 
                 {distanceCharge > 0 && (
                   <div className="flex justify-between text-xs font-bold">
-                    <span className="text-gray-500">Distance Surcharge ({Math.ceil(distanceKm - 3)} km)</span>
+                    <span className="text-gray-500">Distance Surcharge ({Math.ceil(distanceKm - (adminSettings.baseDeliveryDistance || 3))} km)</span>
                     <span className="text-navy-900">{formatPrice(distanceCharge)}</span>
                   </div>
                 )}

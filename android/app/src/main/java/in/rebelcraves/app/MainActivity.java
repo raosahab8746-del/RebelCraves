@@ -1,9 +1,12 @@
 package in.rebelcraves.app;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageView;
@@ -30,6 +33,19 @@ public class MainActivity extends BridgeActivity {
 
         if (getBridge() != null && getBridge().getWebView() != null) {
             getBridge().getWebView().setWebViewClient(new WebViewClient() {
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                    Uri uri = request.getUrl();
+                    String url = uri.toString();
+
+                    if (url.startsWith("tel:") || url.startsWith("whatsapp:")) {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                        startActivity(intent);
+                        return true;
+                    }
+                    return false;
+                }
+
                 @Override
                 public void onPageFinished(WebView view, String url) {
                     View loadingLayout = findViewById(getResources().getIdentifier("loadingLayout", "id", getPackageName()));

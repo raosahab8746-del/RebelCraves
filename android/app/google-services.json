@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "259576731271",
+    "project_id": "flutter-ai-playground-8c1ff",
+    "storage_bucket": "flutter-ai-playground-8c1ff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:259576731271:android:300460f9ec69a118474a22",
+        "android_client_info": {
+          "package_name": "in.rebelcraves.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "259576731271-ic5jrtq8dodfk7foue2c76fklqf1frlb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6hQf8DgZGB9_8N6jhMDWoOCkw7rdZ_yU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "259576731271-ic5jrtq8dodfk7foue2c76fklqf1frlb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

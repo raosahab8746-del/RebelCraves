@@ -136,8 +136,8 @@ const Login = () => {
             <p className="text-[10px] font-black text-navy-300 uppercase tracking-[0.2em]">Queries? Contact Us</p>
             <div className="flex items-center justify-center space-x-6">
               <a 
-                href={`https://wa.me/${supportConfig.phone.replace(/[^0-9]/g, '')}`} 
-                target="_blank" 
+                href={`https://api.whatsapp.com/send?phone=${supportConfig.phone.replace(/[^0-9]/g, '')}`} 
+                target="_top" 
                 rel="noopener noreferrer"
                 className="flex items-center space-x-2 text-orange-400 hover:text-green-500 transition-colors group"
               >

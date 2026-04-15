@@ -161,7 +161,8 @@ export interface SystemSettings {
   supportEmail: string;
   supportPhone: string;
   // New fields for delivery and GST
-  deliveryChargePerKmBeyond3?: number;
+  baseDeliveryDistance?: number;
+  deliveryChargePerKmBeyondBase?: number;
   gstType?: 'percentage' | 'fixed';
   gstValue?: number;
 }

@@ -80,7 +80,11 @@ const AdminDashboard = () => {
     vendorCommissionPercentage: 0,
     banners: [],
     supportEmail: '',
-    supportPhone: ''
+    supportPhone: '',
+    baseDeliveryDistance: 3,
+    deliveryChargePerKmBeyondBase: 0,
+    gstType: 'percentage',
+    gstValue: 0
   });
   const [supportSettings, setSupportSettings] = useState({
     email: 'rebelcravesceo@gmail.com',
@@ -270,10 +274,14 @@ const AdminDashboard = () => {
         let message = 'Failed to detect location.';
         if (err.code === err.PERMISSION_DENIED) {
           message = 'Location permission denied. Please enable it in your browser settings.';
+        } else if (err.code === err.TIMEOUT) {
+          message = 'Location request timed out. Please try again.';
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          message = 'Location information is unavailable.';
         }
         alert(message);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   };
 
@@ -391,7 +399,8 @@ const AdminDashboard = () => {
           deliveryPayoutBase: data.deliveryPayoutBase ?? 0,
           deliveryPayoutPercentage: data.deliveryPayoutPercentage ?? 0,
           vendorCommissionPercentage: data.vendorCommissionPercentage ?? 0,
-          deliveryChargePerKmBeyond3: data.deliveryChargePerKmBeyond3 ?? 0,
+          baseDeliveryDistance: data.baseDeliveryDistance ?? 3,
+          deliveryChargePerKmBeyondBase: data.deliveryChargePerKmBeyondBase ?? 0,
           gstType: data.gstType ?? 'percentage',
           gstValue: data.gstValue ?? 0,
           banners: data.banners ?? [],
@@ -2101,14 +2110,28 @@ const AdminDashboard = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Delivery Charge Per Km Beyond 3km (₹)</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Base Delivery Distance (km)</label>
                     <input
                       type="number"
                       className="w-full px-6 py-4 bg-navy-50 border-2 border-navy-100 rounded-2xl focus:outline-none focus:border-navy-900 transition-all font-bold"
-                      value={settings.deliveryChargePerKmBeyond3 || 0}
+                      value={settings.baseDeliveryDistance || 3}
                       onChange={e => {
                         const val = e.target.value === '' ? 0 : Number(e.target.value);
-                        setSettings({ ...settings, deliveryChargePerKmBeyond3: val });
+                        setSettings({ ...settings, baseDeliveryDistance: val });
+                      }}
+                      placeholder="e.g. 3"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Delivery Charge Per Km Beyond Base (₹)</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-navy-50 border-2 border-navy-100 rounded-2xl focus:outline-none focus:border-navy-900 transition-all font-bold"
+                      value={settings.deliveryChargePerKmBeyondBase || 0}
+                      onChange={e => {
+                        const val = e.target.value === '' ? 0 : Number(e.target.value);
+                        setSettings({ ...settings, deliveryChargePerKmBeyondBase: val });
                       }}
                       placeholder="e.g. 5"
                     />

@@ -23,27 +23,30 @@ const Contact = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <motion.div
-          whileHover={{ y: -5 }}
-          className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-navy-100/50 text-center space-y-4"
+        <a
+          href={`https://api.whatsapp.com/send?phone=${supportConfig.phone.replace(/\D/g, '')}`}
+          target="_top"
+          rel="noopener noreferrer"
+          className="block bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-navy-100/50 text-center space-y-4 hover:-translate-y-1 transition-transform cursor-pointer"
         >
           <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 mx-auto">
             <MessageSquare size={24} />
           </div>
           <h3 className="font-black text-navy-900 uppercase tracking-widest text-xs">WhatsApp Support</h3>
           <p className="text-gray-500 font-bold text-sm break-all">{supportConfig.phone}</p>
-        </motion.div>
+        </a>
 
-        <motion.div
-          whileHover={{ y: -5 }}
-          className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-navy-100/50 text-center space-y-4"
+        <a
+          href={`tel:${supportConfig.phone.replace(/\D/g, '')}`}
+          target="_top"
+          className="block bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-navy-100/50 text-center space-y-4 hover:-translate-y-1 transition-transform cursor-pointer"
         >
           <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mx-auto">
             <Phone size={24} />
           </div>
           <h3 className="font-black text-navy-900 uppercase tracking-widest text-xs">Call Us</h3>
           <p className="text-gray-500 font-bold text-sm">{supportConfig.phone}</p>
-        </motion.div>
+        </a>
 
         <motion.div
           whileHover={{ y: -5 }}
@@ -64,8 +67,8 @@ const Contact = () => {
         </p>
         <div className="pt-4">
           <a 
-            href={`https://wa.me/${supportConfig.phone.replace(/\D/g, '')}`}
-            target="_blank"
+            href={`https://api.whatsapp.com/send?phone=${supportConfig.phone.replace(/\D/g, '')}`}
+            target="_top"
             rel="noopener noreferrer"
             className="inline-block bg-accent-500 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-accent-600 transition-all active:scale-95 shadow-xl shadow-accent-900/20"
           >

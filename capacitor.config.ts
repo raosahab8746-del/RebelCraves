@@ -7,7 +7,12 @@ const config: CapacitorConfig = {
   server: {
     url: 'https://rebelcraves.in',
     cleartext: false,
-    androidScheme: 'https'  }
+    androidScheme: 'https',
+    allowNavigation: [
+      'rebelcraves.in',
+      '*.rebelcraves.in'
+    ]
+  }
 };
 
 export default config;
