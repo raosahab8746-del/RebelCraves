@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { AppNotification } from '../types';
 import { Bell, X, CheckCircle2, Info, AlertTriangle, Package, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 
 export const sendNotification = async (notification: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => {
   try {
@@ -19,12 +20,14 @@ export const sendNotification = async (notification: Omit<AppNotification, 'id' 
 };
 
 const NotificationCenter: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showToast, setShowToast] = useState<AppNotification | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const lastShownNotificationId = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const navigate = useNavigate();
+  const sessionStartTime = useRef(Date.now());
 
   useEffect(() => {
     // Initialize audio with a more intense "crazy" sound
@@ -53,9 +56,18 @@ const NotificationCenter: React.FC = () => {
       
       // Check for new unread notification to show toast
       const latest = newNotifications[0];
-      const isBroadcast = latest?.type === 'broadcast';
+      if (!latest) return;
+
+      const isBroadcast = latest.type === 'broadcast';
+      const createdAt = latest.createdAt?.toDate?.()?.getTime() || Date.now();
       
-      if (latest && (isBroadcast || !latest.read) && latest.id !== lastShownNotificationId.current) {
+      // ONLY show toast if:
+      // 1. It's unread (or broadcast)
+      // 2. It's NOT the one we just showed
+      // 3. It was created AFTER the user logged in (sessionStartTime)
+      const isNew = createdAt > sessionStartTime.current - 5000; // 5s buffer
+
+      if ((isBroadcast || !latest.read) && latest.id !== lastShownNotificationId.current && isNew) {
         lastShownNotificationId.current = latest.id;
         setShowToast(latest);
         
@@ -67,11 +79,18 @@ const NotificationCenter: React.FC = () => {
 
         // Trigger native browser push notification
         if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification(latest.title, {
+          const n = new Notification(latest.title, {
             body: latest.message,
             icon: '/favicon.ico',
-            silent: false
+            tag: latest.id, // Ensure unique ID for background notifications
+            requireInteraction: true
           });
+
+          n.onclick = () => {
+            window.focus();
+            handleNotificationClick(latest);
+            n.close();
+          };
         }
       }
       
@@ -81,7 +100,7 @@ const NotificationCenter: React.FC = () => {
     });
 
     return () => unsub();
-  }, [user]);
+  }, [user, profile, navigate]);
 
   const markAsRead = async (notification: AppNotification) => {
     if (notification.type === 'broadcast') return;
@@ -90,6 +109,22 @@ const NotificationCenter: React.FC = () => {
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
+  };
+
+  const handleNotificationClick = (notification: AppNotification) => {
+    if (notification.orderId) {
+      if (profile?.role === 'vendor') {
+        navigate('/vendor/orders');
+      } else if (profile?.role === 'admin') {
+        navigate('/admin');
+      } else if (profile?.role === 'delivery') {
+        navigate('/delivery');
+      } else {
+        navigate(`/track/${notification.orderId}`);
+      }
+    }
+    markAsRead(notification);
+    setShowToast(null);
   };
 
   useEffect(() => {
@@ -129,10 +164,7 @@ const NotificationCenter: React.FC = () => {
               }}
               exit={{ opacity: 0, y: -100, scale: 0.8, rotate: 5 }}
               className="pointer-events-auto w-full max-w-md bg-navy-900 text-white p-6 rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.5)] border-4 border-accent-500 flex items-center space-x-6 cursor-pointer group relative overflow-hidden"
-              onClick={() => {
-                markAsRead(showToast);
-                setShowToast(null);
-              }}
+              onClick={() => handleNotificationClick(showToast)}
             >
               {/* Animated background pulse - more intense */}
               <div className="absolute inset-0 bg-accent-500/20 animate-pulse pointer-events-none" />

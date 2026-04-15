@@ -204,7 +204,8 @@ const DeliveryDashboard = () => {
         userId: order.customerId,
         title: 'Order Status Update',
         message: 'Your order is at your doorstep! Please reach there to collect it.',
-        type: 'order_update'
+        type: 'order_update',
+        orderId: order.id
       });
       alert('Notification sent to customer!');
     } catch (error) {

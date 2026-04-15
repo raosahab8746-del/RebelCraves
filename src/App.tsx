@@ -69,9 +69,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <NotificationCenter />
         <CartProvider>
           <BrowserRouter>
+            <NotificationCenter />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
